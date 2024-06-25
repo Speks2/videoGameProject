@@ -4,7 +4,7 @@ export default class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('loading', 'assets/images/loading.png');
+        this.load.image('loading', './assets/images/loading1.gif');
     }
 
     create() {

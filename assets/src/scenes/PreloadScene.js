@@ -5,9 +5,10 @@ export default class PreloadScene extends Phaser.Scene {
 
     preload() {
         // Load images
-        this.load.image('cowboy', 'assets/images/cowboy.png');
-        this.load.image('worm', 'assets/images/worm.png');
+        this.load.image('cowboy', 'assets/images/cowboy1.png');
+        this.load.image('worm', 'assets/images/worm1.png');
         this.load.image('bullet', 'assets/images/bullet.png');
+        this.load.image('backgroundMain', 'assets/images/backgroundMain.png');
 
         // Load audio
         this.load.audio('shoot', 'assets/audio/shoot.mp3');

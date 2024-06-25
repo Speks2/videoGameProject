@@ -4,10 +4,17 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
+        // Add the background image
+        this.add.image(400, 300, 'backgroundMain');
+
+        // Create the cowboy sprite
         this.cowboy = this.physics.add.sprite(400, 300, 'cowboy');
+
+        // Create input keys
         this.cursors = this.input.keyboard.createCursorKeys();
         this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
+        // Create groups for bullets and worms
         this.bullets = this.physics.add.group({
             defaultKey: 'bullet',
             maxSize: 10
@@ -15,8 +22,10 @@ export default class GameScene extends Phaser.Scene {
 
         this.worms = this.physics.add.group();
 
+        // Add collision detection
         this.physics.add.collider(this.bullets, this.worms, this.hitWorm, null, this);
 
+        // Spawn worms periodically
         this.time.addEvent({
             delay: 2000,
             callback: this.spawnWorms,

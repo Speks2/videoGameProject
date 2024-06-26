@@ -14,6 +14,8 @@
             // Load images from the local directory
             this.load.image('cowboy', 'assets/images/cowboy2.png');
             this.load.image('backgroundMain', 'assets/images/backgroundMain.png');
+            this.load.image('bullet', 'assets/images/bullet1.png');
+            this.load.image('worm', 'assets/images/worm1.gif');
         }
 
         create() {
@@ -22,10 +24,8 @@
 
             // Add your cowboy character in the middle-bottom of the screen
             this.cowboy = this.physics.add.sprite(window.innerWidth / 2, window.innerHeight - 100, 'cowboy');
-            
-            // Set cowboy properties
-            this.cowboy.setCollideWorldBounds(true); // Make sure cowboy stays within screen bounds
-            this.cowboy.body.setGravityY(0); // Remove gravity effect on cowboy
+            this.cowboy.setCollideWorldBounds(true);
+            this.cowboy.body.setGravityY(0);
 
             // Create input keys
             this.cursors = this.input.keyboard.createCursorKeys();
@@ -35,6 +35,31 @@
                 left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
                 right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
             };
+            this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+            // Create a group for bullets
+            this.bullets = this.physics.add.group({
+                classType: Phaser.Physics.Arcade.Image,
+                maxSize: 10,
+                runChildUpdate: true
+            });
+
+            // Create a group for worms
+            this.worms = this.physics.add.group({
+                classType: Phaser.Physics.Arcade.Image,
+                runChildUpdate: true
+            });
+
+            // Create wave of worms
+            this.time.addEvent({
+                delay: 5000, // every 2 seconds
+                callback: this.createWormWave,
+                callbackScope: this,
+                loop: true
+            });
+
+            // Add collision between bullets and worms
+            this.physics.add.overlap(this.bullets, this.worms, this.hitWorm, null, this);
         }
 
         update() {
@@ -47,6 +72,41 @@
                 this.cowboy.setVelocityX(200);
                 this.cowboy.setFlipX(true); // Face right
             }
+
+            if (Phaser.Input.Keyboard.JustDown(this.spaceBar)) {
+                this.shootBullet();
+            }
+        }
+
+        shootBullet() {
+            const bullet = this.bullets.get(this.cowboy.x, this.cowboy.y - 20, 'bullet');
+            if (bullet) {
+                bullet.setActive(true);
+                bullet.setVisible(true);
+                bullet.setVelocityY(-300);
+            }
+        }
+
+        createWormWave() {
+            for (let i = 0; i < 5; i++) {
+                const worm = this.worms.create(Phaser.Math.Between(0, window.innerWidth), 0, 'worm');
+                worm.setVelocityY(Phaser.Math.Between(50, 100));
+                worm.health = 100; // Set worm health
+            }
+        }
+
+        hitWorm(bullet, worm) {
+            worm.health -= 35; // Bullet damage
+
+            if (worm.health <= 0) {
+                worm.setActive(false);
+                worm.setVisible(false);
+                worm.destroy();
+            }
+
+            bullet.setActive(false);
+            bullet.setVisible(false);
+            bullet.destroy();
         }
     }
 
@@ -58,7 +118,7 @@
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 0 } // Set global gravity to zero
+                gravity: { y: 50 } // Set global gravity to zero
             }
         },
         scale: {

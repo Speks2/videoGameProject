@@ -17,6 +17,49 @@
             justify-content: center;
             align-items: center;
         }
+
+        .health-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 30px;
+            background-color: #00ff00;
+            border: 2px solid #000;
+        }
+
+        .health-bar .bar {
+            width: 100%;
+            height: 100%;
+            background-color: #00ff00;
+            transition: width 0.3s ease;
+        }
+
+        .health-bar .bar.low {
+            background-color: #ff0000;
+        }
+
+        .ammo-bar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 30px;
+            background-color: #00bfff;
+            border: 2px solid #000;
+        }
+
+        .ammo-bar .bar {
+            width: 100%;
+            height: 100%;
+            background-color: #00bfff;
+            transition: width 0.3s ease;
+        }
+
+        .ammo-bar .bar.empty {
+            background-color: #ff0000;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
@@ -27,8 +70,11 @@
         <img src="assets/images/loading1.gif" alt="Loading..." />
     </div>
 
+    <div class="health-bar"></div>
+    <div class="ammo-bar"></div>
+
     <script>
-    class Example extends Phaser.Scene {
+     class Example extends Phaser.Scene {
         preload() {
             // Load images from the local directory
             this.load.image('cowboy', 'assets/images/cowboy2.png');
@@ -101,6 +147,14 @@
             this.input.keyboard.on('keydown-F', () => {
                 this.resetGame();
             });
+
+            // Initialize health bar
+            this.healthBar = this.add.graphics();
+            this.updateHealthBar();
+
+            // Initialize ammo bar
+            this.ammoBar = this.add.graphics();
+            this.updateAmmoBar();
         }
 
         update() {
@@ -125,6 +179,7 @@
                 if (this.bullets.getLength() < 6) { // Check if there are fewer than 6 bullets
                     this.shootBullet();
                     this.sound.play('gunshot'); // Play gunshot sound
+                    this.updateAmmoBar(); // Update ammo bar
                 }
             }
 
@@ -136,12 +191,19 @@
                 });
                 this.bullets.clear(true, true); // Clear bullets from the group
                 this.sound.play('reload'); // Play reload sound
+                this.updateAmmoBar(); // Update ammo bar
             }
 
             // Check if health is zero or below
             if (this.health <= 0) {
                 this.gameOver();
             }
+
+            // Update health bar position and size
+            this.updateHealthBar();
+
+            // Update ammo bar position and size
+            this.updateAmmoBar();
         }
 
         shootBullet() {
@@ -176,15 +238,20 @@
 
         hitCowboy(worm) {
             // Reduce cowboy health
-            this.health -= 100;
+            this.health -= 20;
 
-            // Handle visual or other effects on hit
+            // Update health bar
+            this.updateHealthBar();
 
             // Check if health is zero or below
             if (this.health <= 0) {
                 this.health = 0; // Ensure health doesn't go negative
                 this.gameOver();
             }
+
+            // Make worm disappear
+            worm.destroy();
+            this.sound.play('wormDeath'); // Play worm death sound
         }
 
         hitWorm(bullet, worm) {
@@ -233,6 +300,18 @@
                 this.gameOverText.destroy();
             }
         }
+
+        updateHealthBar() {
+            this.healthBar.clear();
+            this.healthBar.fillStyle(0x00ff00); // Green color
+            this.healthBar.fillRect(window.innerWidth / 2 - 100, 10, 200 * (this.health / 100), 20);
+        }
+
+        updateAmmoBar() {
+            this.ammoBar.clear();
+            this.ammoBar.fillStyle(0x00bfff); // Blue color
+            this.ammoBar.fillRect(window.innerWidth - 220, window.innerHeight - 60, 200 * (this.bullets.getLength() / 6), 30);
+        }
     }
 
     const config = {
@@ -254,7 +333,7 @@
     
     const game = new Phaser.Game(config);
     </script>
-
 </body>
 </html>
-
+     
+         

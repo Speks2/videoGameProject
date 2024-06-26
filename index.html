@@ -4,9 +4,28 @@
     <meta charset="UTF-8">
     <title>Phaser Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <style>
+        /* CSS for the loading animation */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #d9c10df5; /* Optional background color */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
 <body>
+
+    <!-- Loading screen with animated GIF -->
+    <div id="loading-screen">
+        <img src="assets/images/loading1.gif" alt="Loading..." />
+    </div>
 
     <script>
     class Example extends Phaser.Scene {
@@ -14,18 +33,30 @@
             // Load images from the local directory
             this.load.image('cowboy', 'assets/images/cowboy2.png');
             this.load.image('backgroundMain', 'assets/images/backgroundMain.png');
-            this.load.image('bullet', 'assets/images/bullet1.png');
+            this.load.image('bullet', 'assets/images/bullet.png');
             this.load.image('worm', 'assets/images/worm1.gif');
+
+            // Load audio files
+            this.load.audio('gunshot', 'assets/audio/gunshot.mp3');
+            this.load.audio('reload', 'assets/audio/reload.mp3');
+            this.load.audio('wormDeath', 'assets/audio/wormDeath.mp3');
         }
 
         create() {
+            // Remove the loading screen once the game assets are loaded
+            this.loadingScreen = document.getElementById('loading-screen');
+            this.loadingScreen.style.display = 'none';
+
             // Add the background image to cover the entire screen
             this.add.image(window.innerWidth / 2, window.innerHeight / 2, 'backgroundMain').setDisplaySize(window.innerWidth, window.innerHeight);
 
             // Add your cowboy character in the middle-bottom of the screen
             this.cowboy = this.physics.add.sprite(window.innerWidth / 2, window.innerHeight - 100, 'cowboy');
             this.cowboy.setCollideWorldBounds(true);
-            this.cowboy.body.setGravityY(0);
+            this.cowboy.body.setGravityY(200); // Add gravity for realistic jump
+
+            // Set initial health
+            this.health = 100;
 
             // Create input keys
             this.cursors = this.input.keyboard.createCursorKeys();
@@ -37,10 +68,10 @@
             };
             this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-            // Create a group for bullets
+            // Create a group for bullets with a maximum of 6 bullets
             this.bullets = this.physics.add.group({
                 classType: Phaser.Physics.Arcade.Image,
-                maxSize: 10,
+                maxSize: 6, // Limit to 6 bullets
                 runChildUpdate: true
             });
 
@@ -50,48 +81,109 @@
                 runChildUpdate: true
             });
 
-            // Create wave of worms
+            // Add collision between bullets and worms
+            this.physics.add.overlap(this.bullets, this.worms, this.hitWorm, null, this);
+
+            // Set up collision with cowboy and worms
+            this.physics.add.collider(this.cowboy, this.worms, (cowboy, worm) => {
+                this.hitCowboy(worm);
+            });
+
+            // Spawn worms gradually
             this.time.addEvent({
-                delay: 5000, // every 2 seconds
+                delay: 4000, // every 4 seconds
                 callback: this.createWormWave,
                 callbackScope: this,
                 loop: true
             });
 
-            // Add collision between bullets and worms
-            this.physics.add.overlap(this.bullets, this.worms, this.hitWorm, null, this);
+            // Reset game on F key press
+            this.input.keyboard.on('keydown-F', () => {
+                this.resetGame();
+            });
         }
 
         update() {
-            this.cowboy.setVelocity(0);
-
+            // Move the cowboy left or right
             if (this.cursors.left.isDown || this.wasd.left.isDown) {
                 this.cowboy.setVelocityX(-200);
                 this.cowboy.setFlipX(false); // Face left
             } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
                 this.cowboy.setVelocityX(200);
                 this.cowboy.setFlipX(true); // Face right
+            } else {
+                this.cowboy.setVelocityX(0);
             }
 
+            // Make the cowboy jump
+            if ((this.cursors.up.isDown || this.wasd.up.isDown) && this.cowboy.body.onFloor()) {
+                this.cowboy.setVelocityY(-500); // Jump velocity
+            }
+
+            // Shoot bullets
             if (Phaser.Input.Keyboard.JustDown(this.spaceBar)) {
-                this.shootBullet();
+                if (this.bullets.getLength() < 6) { // Check if there are fewer than 6 bullets
+                    this.shootBullet();
+                    this.sound.play('gunshot'); // Play gunshot sound
+                }
+            }
+
+            // Reload bullets
+            if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R))) {
+                // Reset bullets
+                this.bullets.getChildren().forEach(bullet => {
+                    bullet.destroy();
+                });
+                this.bullets.clear(true, true); // Clear bullets from the group
+                this.sound.play('reload'); // Play reload sound
+            }
+
+            // Check if health is zero or below
+            if (this.health <= 0) {
+                this.gameOver();
             }
         }
 
         shootBullet() {
-            const bullet = this.bullets.get(this.cowboy.x, this.cowboy.y - 20, 'bullet');
+            const bullet = this.bullets.get(this.cowboy.x, this.cowboy.y, 'bullet');
             if (bullet) {
                 bullet.setActive(true);
                 bullet.setVisible(true);
-                bullet.setVelocityY(-300);
+                bullet.body.setAllowGravity(false);
+
+                // Set bullet velocity and flip based on cowboy's orientation
+                const bulletVelocityX = this.cowboy.flipX ? 1000 : -1000;
+                bullet.setVelocityX(bulletVelocityX);
+                bullet.setFlipX(this.cowboy.flipX); // Match cowboy's flip state
             }
         }
 
         createWormWave() {
-            for (let i = 0; i < 5; i++) {
-                const worm = this.worms.create(Phaser.Math.Between(0, window.innerWidth), 0, 'worm');
-                worm.setVelocityY(Phaser.Math.Between(50, 100));
-                worm.health = 100; // Set worm health
+            const side = Phaser.Math.Between(0, 1); // Randomly choose a side: 0 = left, 1 = right
+            const startY = Phaser.Math.Between(50, window.innerHeight - 50);
+            const velocityX = side === 0 ? 50 : -50; // Adjust velocity for slower movement
+
+            const worm = this.worms.create(side === 0 ? -50 : window.innerWidth + 50, startY, 'worm');
+            worm.setVelocityX(velocityX);
+            worm.health = 100; // Set worm health (damage per hit to cowboy)
+            worm.setCollideWorldBounds(true); // Ensure worms stay within game bounds
+
+            // Set up collision with cowboy
+            this.physics.add.collider(this.cowboy, worm, (cowboy, worm) => {
+                this.hitCowboy(worm);
+            });
+        }
+
+        hitCowboy(worm) {
+            // Reduce cowboy health
+            this.health -= 100;
+
+            // Handle visual or other effects on hit
+
+            // Check if health is zero or below
+            if (this.health <= 0) {
+                this.health = 0; // Ensure health doesn't go negative
+                this.gameOver();
             }
         }
 
@@ -102,11 +194,44 @@
                 worm.setActive(false);
                 worm.setVisible(false);
                 worm.destroy();
+                this.sound.play('wormDeath'); // Play worm death sound
             }
 
             bullet.setActive(false);
             bullet.setVisible(false);
             bullet.destroy();
+        }
+
+        gameOver() {
+            // Game over logic
+            this.physics.pause(); // Pause the physics simulation if needed
+
+            // Clear existing game over text, if any
+            if (this.gameOverText) {
+                this.gameOverText.destroy();
+            }
+
+            // Display game over message
+            this.gameOverText = this.add.text(window.innerWidth / 2, window.innerHeight / 2, 'GAME OVER', {
+                fontSize: '64px',
+                fontFamily: 'IMPACT',
+                color: '#ff0000',
+                align: 'center'
+            });
+            this.gameOverText.setOrigin(0.5);
+        }
+
+        resetGame() {
+            // Reset game state
+            this.health = 100;
+            this.physics.resume(); // Resume physics if paused
+            this.worms.clear(true, true); // Clear all worms
+            this.bullets.clear(true, true); // Clear all bullets
+
+            // Clear game over text
+            if (this.gameOverText) {
+                this.gameOverText.destroy();
+            }
         }
     }
 
@@ -118,7 +243,7 @@
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 50 } // Set global gravity to zero
+                gravity: { y: 200 } // Set global gravity to simulate jump
             }
         },
         scale: {
@@ -126,9 +251,10 @@
             autoCenter: Phaser.Scale.CENTER_BOTH
         }
     };
-
+    
     const game = new Phaser.Game(config);
     </script>
 
 </body>
 </html>
+

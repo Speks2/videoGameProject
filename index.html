@@ -42,7 +42,7 @@
             width: 200px;
             height: 30px;
             background-color: #3558f5;
-            border: 2px solid #000;
+            border: 5px solid #000;
             border-radius: 10px;
         }
 
@@ -54,15 +54,23 @@
 
         .level {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 1rem;
+            right: 1rem;
             font-size: 24px;
             font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-            color: #f3ef0c;
-            background-color: grey;
+            color: #070005;
+            background-color: rgb(243, 223, 9);
             border: 2px solid black;
             border-radius: 5px;
+            height: 2rem;
+            width: 5.5rem;
         }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
@@ -92,12 +100,14 @@
                 this.load.image('cowboy', 'assets/images/cowboy2.png');
                 this.load.image('backgroundMain', 'assets/images/backgroundMain.png');
                 this.load.image('bullet', 'assets/images/bullet.png');
-                this.load.image('worm', 'assets/images/worm1.gif');
+                this.load.image('worm', 'assets/images/worm2.gif');
 
                 // Load audio files
                 this.load.audio('gunshot', 'assets/audio/gunshot.mp3');
                 this.load.audio('reload', 'assets/audio/reload1.mp3');
                 this.load.audio('wormDeath', 'assets/audio/wormDeath.mp3');
+                // Load background music
+                this.load.audio('backgroundMusic', 'assets/audio/backgroundMusic.mp3'); 
             }
 
             create() {
@@ -112,6 +122,9 @@
                 this.cowboy = this.physics.add.sprite(window.innerWidth / 2, window.innerHeight - 100, 'cowboy');
                 this.cowboy.setCollideWorldBounds(true);
                 this.cowboy.body.setGravityY(200); // Add gravity for realistic jump
+
+                this.backgroundMusic = this.sound.add('backgroundMusic', { loop: true });
+                this.backgroundMusic.play(); // Add this line
 
                 // Set initial health
                 this.health = 100;
@@ -154,7 +167,7 @@
 
                 // Spawn worms gradually
                 this.time.addEvent({
-                    delay: 4000, // every 4 seconds
+                    delay: 3000, // every 3 seconds
                     callback: this.createWormWave,
                     callbackScope: this,
                     loop: true
@@ -189,7 +202,7 @@
 
                 // Make the cowboy jump
                 if ((this.cursors.up.isDown || this.wasd.up.isDown) && this.cowboy.body.onFloor()) {
-                    this.cowboy.setVelocityY(-500); // Jump velocity
+                    this.cowboy.setVelocityY(-350); // Jump velocity
                 }
 
                 // Shoot bullets
@@ -239,20 +252,65 @@
             }
 
             createWormWave() {
-                const side = Phaser.Math.Between(0, 1); // Randomly choose a side: 0 = left, 1 = right
-                const startY = Phaser.Math.Between(50, window.innerHeight - 50);
-                const velocityX = side === 0 ? 50 : -50; // Adjust velocity for slower movement
+    const side = Phaser.Math.Between(0, 1); // Randomly choose a side: 0 = left, 1 = right
+    const startY = Phaser.Math.Between(50, window.innerHeight - 50);
 
-                const worm = this.worms.create(side === 0 ? -50 : window.innerWidth + 50, startY, 'worm');
-                worm.setVelocityX(velocityX);
-                worm.health = 100; // Set worm health (damage per hit to cowboy)
-                worm.setCollideWorldBounds(true); // Ensure worms stay within game bounds
+    // Determine base velocity based on side
+    let baseVelocityX = side === 0 ? 150 : -150; // Initial base velocity
 
-                // Set up collision with cowboy
-                this.physics.add.collider(this.cowboy, worm, (cowboy, worm) => {
-                    this.hitCowboy(worm);
-                });
-            }
+    // Calculate speed increase based on current level
+    const speedIncrease = Math.floor(this.level / 5) * 5; // 5% speed increase per 5 levels
+
+    // Adjust base velocity with speed increase
+    baseVelocityX += side === 0 ? baseVelocityX * (speedIncrease / 100) : -baseVelocityX * (speedIncrease / 100);
+
+    // Create the worm sprite
+    const worm = this.physics.add.sprite(side === 0 ? -50 : window.innerWidth + 50, startY, 'worm');
+    this.worms.add(worm); // Add worm to the group
+
+    worm.setVelocityX(baseVelocityX);
+    worm.health = 100; // Set worm health (damage per hit to cowboy)
+    worm.setCollideWorldBounds(true); // Ensure worms stay within game bounds
+
+    // Calculate target position (center of the screen)
+    const targetX = window.innerWidth / 2;
+
+    // Update worm movement
+    const moveWorm = () => {
+        // Check if worm is active and should move
+        if (!worm || !worm.active) {
+            moveEvent.remove(false); // Stop the movement event if worm is no longer active
+            return;
+        }
+
+        // Adjust velocity incrementally towards the center
+        if ((side === 0 && worm.x >= targetX) || (side === 1 && worm.x <= targetX)) {
+            worm.setVelocityX(0); // Stop horizontal movement once at the center
+        } else {
+            worm.setVelocityX(baseVelocityX); // Maintain base velocity
+        }
+    };
+
+    // Schedule the movement event
+    const moveEvent = this.time.addEvent({
+        delay: 1000, // Update movement every second
+        callback: moveWorm,
+        callbackScope: this,
+        loop: true
+    });
+
+    // Set up collision with cowboy
+    this.physics.add.collider(this.cowboy, worm, (cowboy, worm) => {
+        this.hitCowboy(worm);
+    });
+
+    // Flip worm sprite based on direction
+    if (side === 1) {
+        worm.setFlipX(true);
+    } else {
+        worm.setFlipX(false);
+    }
+}
 
             hitCowboy(worm) {
                 // Reduce cowboy health

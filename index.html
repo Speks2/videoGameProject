@@ -27,6 +27,9 @@
             height: 30px;
             background-color: #ff0000;
             border: 5px solid #000;
+            font-size: 1.5rem;
+            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+            text-align: center;
         }
 
         .health-bar .bar {
@@ -41,36 +44,39 @@
             right: 20px;
             width: 200px;
             height: 30px;
-            background-color: #3558f5;
+            background-color: #db0921;
             border: 5px solid #000;
             border-radius: 10px;
         }
 
         .ammo-bar .bar {
             height: 100%;
-            background-color: #e71212;
+            background-color: #1547ef;
             transition: width 0.3s ease;
+            font-size: 1.4rem;
+            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+            text-align: center;
         }
 
         .level {
             position: absolute;
             top: 1rem;
             right: 1rem;
-            font-size: 24px;
-            font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+            font-size: 1.5rem;
+            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
             color: #070005;
             background-color: rgb(243, 223, 9);
             border: 2px solid black;
             border-radius: 5px;
-            height: 2rem;
-            width: 5.5rem;
+            height: 2.2rem;
+            width: 8rem;
+            text-align: center;
         }
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
         }
-
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
@@ -101,6 +107,8 @@
                 this.load.image('backgroundMain', 'assets/images/backgroundMain.png');
                 this.load.image('bullet', 'assets/images/bullet.png');
                 this.load.image('worm', 'assets/images/worm2.gif');
+                this.load.image('splatt', 'assets/images/splatt.png');
+
 
                 // Load audio files
                 this.load.audio('gunshot', 'assets/audio/gunshot.mp3');
@@ -135,6 +143,9 @@
                 this.level = 1;
                 this.nextLevelExp = 50;
 
+                // Set initial ammo
+                this.ammo = 6;
+
                 // Create input keys
                 this.cursors = this.input.keyboard.createCursorKeys();
                 this.wasd = {
@@ -142,6 +153,7 @@
                     down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
                     left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
                     right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+
                 };
                 this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
@@ -208,7 +220,7 @@
 
                 // Shoot bullets
                 if (Phaser.Input.Keyboard.JustDown(this.spaceBar)) {
-                    if (this.bullets.getLength() < 6) { // Check if there are fewer than 6 bullets
+                    if (this.ammo > 0) { // Check if there is ammo
                         this.shootBullet();
                         this.sound.play('gunshot'); // Play gunshot sound
                         this.updateAmmoBar(); // Update ammo bar
@@ -217,7 +229,8 @@
 
                 // Reload bullets
                 if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R))) {
-                    // Reset bullets
+                    // Reset ammo count
+                    this.ammo = 6;
                     this.bullets.getChildren().forEach(bullet => {
                         bullet.destroy();
                     });
@@ -249,69 +262,77 @@
                     const bulletVelocityX = this.cowboy.flipX ? 1000 : -1000;
                     bullet.setVelocityX(bulletVelocityX);
                     bullet.setFlipX(this.cowboy.flipX); // Match cowboy's flip state
+
+                    // Decrease ammo count
+                    this.ammo--;
                 }
             }
 
             createWormWave() {
-    const side = Phaser.Math.Between(0, 1); // Randomly choose a side: 0 = left, 1 = right
-    const startY = Phaser.Math.Between(50, window.innerHeight - 50);
+                // Check if the game is over before spawning new worms
+                if (this.health <= 0) {
+                    return; // Exit the method if the game is over
+                }
 
-    // Determine base velocity based on side
-    let baseVelocityX = side === 0 ? 150 : -150; // Initial base velocity
+                const side = Phaser.Math.Between(0, 1); // Randomly choose a side: 0 = left, 1 = right
+                const startY = Phaser.Math.Between(50, window.innerHeight - 50);
 
-    // Calculate speed increase based on current level
-    const speedIncrease = Math.floor(this.level / 5) * 5; // 5% speed increase per 5 levels
+                // Determine base velocity based on side
+                let baseVelocityX = side === 0 ? 150 : -150; // Initial base velocity
 
-    // Adjust base velocity with speed increase
-    baseVelocityX += side === 0 ? baseVelocityX * (speedIncrease / 100) : -baseVelocityX * (speedIncrease / 100);
+                // Calculate speed increase based on current level
+                const speedIncrease = Math.floor(this.level / 5) * 5; // 5% speed increase per 5 levels
 
-    // Create the worm sprite
-    const worm = this.physics.add.sprite(side === 0 ? -50 : window.innerWidth + 50, startY, 'worm');
-    this.worms.add(worm); // Add worm to the group
+                // Adjust base velocity with speed increase
+                baseVelocityX += side === 0 ? baseVelocityX * (speedIncrease / 100) : -baseVelocityX * (speedIncrease / 100);
 
-    worm.setVelocityX(baseVelocityX);
-    worm.health = 100; // Set worm health (damage per hit to cowboy)
-    worm.setCollideWorldBounds(true); // Ensure worms stay within game bounds
+                // Create the worm sprite
+                const worm = this.physics.add.sprite(side === 0 ? -50 : window.innerWidth + 50, startY, 'worm');
+                this.worms.add(worm); // Add worm to the group
 
-    // Calculate target position (center of the screen)
-    const targetX = window.innerWidth / 2;
+                worm.setVelocityX(baseVelocityX);
+                worm.health = 100; // Set worm health (damage per hit to cowboy)
+                worm.setCollideWorldBounds(true); // Ensure worms stay within game bounds
 
-    // Update worm movement
-    const moveWorm = () => {
-        // Check if worm is active and should move
-        if (!worm || !worm.active) {
-            moveEvent.remove(false); // Stop the movement event if worm is no longer active
-            return;
-        }
+                // Calculate target position (center of the screen)
+                const targetX = window.innerWidth / 2;
 
-        // Adjust velocity incrementally towards the center
-        if ((side === 0 && worm.x >= targetX) || (side === 1 && worm.x <= targetX)) {
-            worm.setVelocityX(0); // Stop horizontal movement once at the center
-        } else {
-            worm.setVelocityX(baseVelocityX); // Maintain base velocity
-        }
-    };
+                // Update worm movement
+                const moveWorm = () => {
+                    // Check if worm is active and should move
+                    if (!worm || !worm.active) {
+                        moveEvent.remove(false); // Stop the movement event if worm is no longer active
+                        return;
+                    }
 
-    // Schedule the movement event
-    const moveEvent = this.time.addEvent({
-        delay: 1000, // Update movement every second
-        callback: moveWorm,
-        callbackScope: this,
-        loop: true
-    });
+                    // Adjust velocity incrementally towards the center
+                    if ((side === 0 && worm.x >= targetX) || (side === 1 && worm.x <= targetX)) {
+                        worm.setVelocityX(0); // Stop horizontal movement once at the center
+                    } else {
+                        worm.setVelocityX(baseVelocityX); // Maintain base velocity
+                    }
+                };
 
-    // Set up collision with cowboy
-    this.physics.add.collider(this.cowboy, worm, (cowboy, worm) => {
-        this.hitCowboy(worm);
-    });
+                // Schedule the movement event
+                const moveEvent = this.time.addEvent({
+                    delay: 1000, // Update movement every second
+                    callback: moveWorm,
+                    callbackScope: this,
+                    loop: true
+                });
 
-    // Flip worm sprite based on direction
-    if (side === 1) {
-        worm.setFlipX(true);
-    } else {
-        worm.setFlipX(false);
-    }
-}
+                // Set up collision with cowboy
+                this.physics.add.collider(this.cowboy, worm, (cowboy, worm) => {
+                    this.hitCowboy(worm);
+                });
+
+                // Flip worm sprite based on direction
+                if (side === 1) {
+                    worm.setFlipX(true);
+                } else {
+                    worm.setFlipX(false);
+                }
+            }
 
             hitCowboy(worm) {
                 // Reduce cowboy health
@@ -332,23 +353,33 @@
             }
 
             hitWorm(bullet, worm) {
-                worm.health -= 35; // Bullet damage
+    worm.health -= 35; // Bullet damage
 
-                if (worm.health <= 0) {
-                    worm.setActive(false);
-                    worm.setVisible(false);
-                    worm.destroy();
-                    this.sound.play('wormDeath'); // Play worm death sound
+    if (worm.health <= 0) {
+        worm.setActive(false);
+        worm.setVisible(false);
+        this.sound.play('wormDeath'); // Play worm death sound
 
-                    // Increase EXP and check for level up
-                    this.gainExp(25);
-                }
+        // Create splatt sprite at the worm's position
+        const splatt = this.add.sprite(worm.x, worm.y, 'splatt');
+        splatt.setDepth(1); // Ensure it's above other game objects
 
-                bullet.setActive(false);
-                bullet.setVisible(false);
-                bullet.destroy();
-            }
+        // Destroy the worm
+        worm.destroy();
 
+        // Increase EXP and check for level up
+        this.gainExp(25);
+
+        // Remove splatt sprite after half a second (250 ms)
+        this.time.delayedCall(250, () => {
+            splatt.destroy();
+        });
+    }
+
+    bullet.setActive(false);
+    bullet.setVisible(false);
+    bullet.destroy();
+}
             gainExp(amount) {
                 this.exp += amount;
                 if (this.exp >= this.nextLevelExp && this.level < 100) {
@@ -391,6 +422,7 @@
                 this.physics.resume(); // Resume physics if paused
                 this.worms.clear(true, true); // Clear all worms
                 this.bullets.clear(true, true); // Clear all bullets
+                this.ammo = 6; // Reset ammo
 
                 // Clear game over text
                 if (this.gameOverText) {
@@ -398,6 +430,7 @@
                 }
 
                 this.updateLevelDisplay();
+                this.updateAmmoBar();
             }
 
             updateHealthBar() {
@@ -407,7 +440,7 @@
 
             updateAmmoBar() {
                 const ammoBarInner = document.getElementById('ammo-bar-inner');
-                ammoBarInner.style.width = `${(this.bullets.getLength() / 6) * 100}%`;
+                ammoBarInner.style.width = `${(this.ammo / 6) * 100}%`;
             }
 
             updateLevelDisplay() {
